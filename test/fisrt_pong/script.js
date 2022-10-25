@@ -156,11 +156,11 @@ function getPoint(whoScore) {
 
 function getNewDirection(hit) {
     if (hit === 'left') {
-        ball.directionY = Math.acos((player1.centerY - ball.centerY) / 100) - Math.PI / 2;
-        ball.directionX = ball.speed + Math.abs(ball.directionY);
+        ball.directionY = Math.tan((player1.centerY - ball.centerY) / (player1.height / 2)) * 2;
+        ball.directionX = ball.speed + (Math.abs(ball.directionY) / 2);
     } else {
-        ball.directionY = Math.acos((player2.centerY - ball.centerY) / 100) - Math.PI / 2;
-        ball.directionX = -ball.speed - Math.abs(ball.directionY);
+        ball.directionY = Math.tan((player2.centerY - ball.centerY) / (player2.height / 2)) * 2;
+        ball.directionX = -ball.speed - (Math.abs(ball.directionY) / 2);
     }
 }
 
@@ -210,6 +210,8 @@ function moveBall() {
         && ball.right >= player2.left) {
         ball.directionY = -ball.directionY;
     }
+
+    //if the ball touch tow things in the same time
 
     ball.move();
     setTimeout(moveBall, 10);
