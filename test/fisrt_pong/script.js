@@ -10,48 +10,64 @@ let ballDoc = document.getElementById('ball');
 let board = document.getElementById('board');
 let positionBoard = board.getBoundingClientRect();
 
+const Direction = {
+    UP:  -1,
+    DOWN: 1
+}
+
 class Player {
     constructor(paddle, position, score) {
         this.paddle = paddle;
+        this.speed = 20;
         this.score = 0;
         this.scoreDoc = score;
-        this.positionTop = position.top;
-        this.positionLeft = position.left;
-        this.positionRight = position.right;
-        this.positionBottom = position.bottom;
+        this.top = position.top;
+        this.left = position.left;
+        this.right = position.right;
+        this.bottom = position.bottom;
+        this.height = position.height;
+        this.width = position.width;
+        this.centerY = position.top + position.height / 2;
     }
 
-    movePaddleUp() {
-        this.positionTop -= 15;
-        this.paddle.style.top = this.positionTop + "px";
-    }
+    move(way) {
+        if (gameSate === 'notStarted')
+            return;
 
-    movePaddleDown() {
-        this.positionTop += 15;
-        this.paddle.style.top = this.positionTop + "px";
+        if (way === Direction.UP && this.top - this.speed < positionBoard.top
+            || way === Direction.DOWN && this.bottom + this.speed > positionBoard.bottom)
+                return ;
+
+        this.top += this.speed * way;
+        this.bottom += this.speed * way;
+        this.centerY += this.speed * way;
+        this.paddle.style.top = this.top + "px";
     }
 }
 
 class Ball {
     constructor(ball, position) {
         this.ball = ball;
-        this.speed = 2;
-        this.positionTop = position.top;
-        this.positionLeft = position.left;
-        this.directionX = 0;
+        this.speed = 3;
+        this.top = position.top;
+        this.left = position.left;
+        this.right = position.right;
+        this.bottom = position.bottom;
+        this.height = position.height;
+        this.width = position.width;
+        this.centerY = position.top + position.height / 2;
+        this.directionX = Math.floor(Math.random() * 2) === 0 ? -1 * this.speed : 1 * this.speed;
         this.directionY = 0;
-
-        while (this.directionX === 0 || this.directionY === 0) {
-            this.directionX = Math.floor(Math.random() * 10) - 5;
-            this.directionY = Math.floor(Math.random() * 10) - 5;
-        }
     }
 
     move() {
-        this.positionTop += this.directionY * this.speed;
-        this.positionLeft += this.directionX * this.speed;
-        this.ball.style.left = this.positionLeft + "px";
-        this.ball.style.top = this.positionTop + "px";
+        this.top += this.directionY * this.speed;
+        this.left += this.directionX * this.speed;
+        this.right = this.left + this.width;
+        this.bottom = this.top + this.height;
+        this.centerY = this.top + this.height / 2;
+        this.ball.style.left = this.left + "px";
+        this.ball.style.top = this.top + "px";
     }
 }
 
@@ -62,41 +78,48 @@ ball = new Ball(ballDoc, ballDoc.getBoundingClientRect());
 document.addEventListener('keydown', keyDownEvent);
 
 function keyDownEvent(event) {
-    console.log(event);
+    // console.log(event);
     switch (event.key) {
         case 'Enter':
             startGame();
             break;
         case 'w':
-            player1.movePaddleUp();
+            player1.move(Direction.UP);
             break;
         case 's':
-            player1.movePaddleDown();
+            player1.move(Direction.DOWN);
             break;
         case 'ArrowUp':
-            player2.movePaddleUp();
+            player2.move(Direction.UP);
             break;
         case 'ArrowDown':
-            player2.movePaddleDown();
+            player2.move(Direction.DOWN);
             break;
         default:
             break;
     }
 };
 
+function replacePaddle() {
+    player1.top = positionBoard.top + (positionBoard.bottom - positionBoard.top) / 2 - player1.height / 2;
+    player1.bottom = player1.top + player1.height;
+    player1.centerY = player1.top + player1.height / 2;
+    player1.paddle.style.top = player1.top + "px";
+
+    player2.top = positionBoard.top + (positionBoard.bottom - positionBoard.top) / 2 - player2.height / 2;
+    player2.bottom = player2.top + player2.height;
+    player2.centerY = player2.top + player2.height / 2;
+    player2.paddle.style.top = player2.top + "px";
+}
+
 function replaceBall() {
-    ball.positionTop = positionBoard.top + (positionBoard.bottom - positionBoard.top) / 2;
-    ball.positionLeft = positionBoard.left + (positionBoard.right - positionBoard.left) / 2;
-    ball.ball.style.left = ball.positionLeft + "px";
-    ball.ball.style.top = ball.positionTop + "px";
+    ball.top = positionBoard.top + (positionBoard.bottom - positionBoard.top) / 2;
+    ball.left = positionBoard.left + (positionBoard.right - positionBoard.left) / 2;
+    ball.ball.style.left = ball.left + "px";
+    ball.ball.style.top = ball.top + "px";
 
-    ball.directionX = 0;
+    ball.directionX = Math.floor(Math.random() * 2) === 0 ? -1 * ball.speed : 1 * ball.speed;
     ball.directionY = 0;
-
-    while (ball.directionX === 0 || ball.directionY === 0) {
-        ball.directionX = Math.floor(Math.random() * 10) - 5;
-        ball.directionY = Math.floor(Math.random() * 10) - 5;
-    }
 }
 
 function resetGame() {
@@ -104,7 +127,7 @@ function resetGame() {
     player2.score = 0;
     player1.scoreDoc.innerHTML = '' + player1.score;
     player2.scoreDoc.innerHTML = '' + player2.score;
-    replaceBall();
+    replacePaddle();
 }
 
 function getPoint(whoScore) {
@@ -131,31 +154,61 @@ function getPoint(whoScore) {
     return 0;
 }
 
+function getNewDirection(hit) {
+    if (hit === 'left') {
+        ball.directionY = Math.acos((player1.centerY - ball.centerY) / 100) - Math.PI / 2;
+        ball.directionX = ball.speed + Math.abs(ball.directionY);
+    } else {
+        ball.directionY = Math.acos((player2.centerY - ball.centerY) / 100) - Math.PI / 2;
+        ball.directionX = -ball.speed - Math.abs(ball.directionY);
+    }
+}
+
 function moveBall() {
-    if (ball.positionTop <= positionBoard.top) {
+    // if the ball touch the top or bottom of the board
+    if (ball.top <= positionBoard.top) {
         ball.directionY = -ball.directionY;
     }
-    if (ball.positionTop + 30 >= positionBoard.bottom) {
+    if (ball.bottom >= positionBoard.bottom) {
         ball.directionY = -ball.directionY;
     }
-    if (ball.positionLeft <= positionBoard.left) {
+
+    // if the ball touch the left or right of the board
+    if (ball.left <= positionBoard.left) {
         if (getPoint('2'))
             return ;
     }
-    if (ball.positionLeft + 30 >= positionBoard.right) {
+    if (ball.right >= positionBoard.right) {
         if (getPoint('1'))
             return ;
     }
 
-    if (ball.positionLeft <= player1.positionRight
-        && ball.positionTop >= player1.positionTop
-        && ball.positionTop + 30 <= player1.positionBottom) {
-        ball.directionX = -ball.directionX;
+    // if the ball touch the left or right paddle
+    if (ball.left <= player1.right
+        && ball.bottom >= player1.top
+        && ball.top <= player1.bottom
+        && ball.left >= player1.left) {
+        getNewDirection('left');
     }
-    if (ball.positionLeft + 30 >= player2.positionLeft
-        && ball.positionTop >= player2.positionTop
-        && ball.positionTop + 30 <= player2.positionBottom) {
-        ball.directionX = -ball.directionX;
+    if (ball.right >= player2.left
+        && ball.bottom >= player2.top
+        && ball.top <= player2.bottom
+        && ball.right <= player2.right) {
+        getNewDirection('right');
+    }
+
+    // if the ball the top or bottom of the paddle
+    if ((ball.top <= player1.bottom
+        || ball.bottom >= player1.top)
+        && ball.left <= player1.right
+        && ball.right >= player1.left) {
+        ball.directionY = -ball.directionY;
+    }
+    if ((ball.bottom >= player2.top
+        || ball.top <= player2.bottom)
+        && ball.left <= player2.right
+        && ball.right >= player2.left) {
+        ball.directionY = -ball.directionY;
     }
 
     ball.move();
