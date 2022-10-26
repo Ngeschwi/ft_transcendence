@@ -1,5 +1,5 @@
 let gameSate = 'notStarted';
-let maxPoints = 2;
+let maxPoints = 10;
 
 let paddle1 = document.getElementById('paddle1');
 let paddle2 = document.getElementById('paddle2');
@@ -15,17 +15,18 @@ const Direction = {
     DOWN: 1
 }
 
-let tabKeys = {
-    'w': false,
-    's': false,
-    'ArrowUp': false,
-    'ArrowDown': false
+const Do = {
+    CONTINUE: 0,
+    END: 1
 }
 
+let keyPress = {};
+
 class Player {
-    constructor(paddle, position, score) {
+    constructor(paddle, position, score, id) {
+        this.id = id;
         this.paddle = paddle;
-        this.speed = 20;
+        this.speed = 10;
         this.score = 0;
         this.scoreDoc = score;
         this.top = position.top;
@@ -38,16 +39,20 @@ class Player {
     }
 
     move(way) {
-        if (gameSate === 'notStarted')
-            return;
-
-        if (way === Direction.UP && this.top - this.speed < positionBoard.top
-            || way === Direction.DOWN && this.bottom + this.speed > positionBoard.bottom)
-                return ;
+        if (((keyPress['w'] || keyPress['ArrowUp']) && this.top - this.speed < positionBoard.top)
+            || ((keyPress['s'] || keyPress['ArrowDown']) && this.bottom + this.speed > positionBoard.bottom))
+            return ;
 
         this.top += this.speed * way;
         this.bottom += this.speed * way;
         this.centerY += this.speed * way;
+        this.paddle.style.top = this.top + "px";
+    }
+
+    resetPlace() {
+        this.top = positionBoard.top + (positionBoard.bottom - positionBoard.top) / 2 - this.height / 2;
+        this.bottom = this.top + this.height;
+        this.centerY = this.top + this.height / 2;
         this.paddle.style.top = this.top + "px";
     }
 }
@@ -76,10 +81,22 @@ class Ball {
         this.ball.style.left = this.left + "px";
         this.ball.style.top = this.top + "px";
     }
+
+    resetPlace() {
+        this.top = positionBoard.top + (positionBoard.bottom - positionBoard.top) / 2;
+        this.left = positionBoard.left + (positionBoard.right - positionBoard.left) / 2;
+        this.right = this.left + this.width;
+        this.bottom = this.top + this.height;
+        this.ball.style.left = this.left + "px";
+        this.ball.style.top = this.top + "px";
+
+        this.directionX = Math.floor(Math.random() * 2) === 0 ? -1 * this.speed : 1 * this.speed;
+        this.directionY = 0;
+    }
 }
 
-player1 = new Player(paddle1, paddle1.getBoundingClientRect(), player1Score);
-player2 = new Player(paddle2, paddle2.getBoundingClientRect(), player2Score);
+player1 = new Player(paddle1, paddle1.getBoundingClientRect(), player1Score, 1);
+player2 = new Player(paddle2, paddle2.getBoundingClientRect(), player2Score, 1);
 ball = new Ball(ballDoc, ballDoc.getBoundingClientRect());
 
 document.addEventListener('keydown', keyDownEvent);
@@ -87,79 +104,14 @@ document.addEventListener('keyup', keyUpEvent);
 
 function keyDownEvent(event) {
     // console.log(event);
-    switch (event.key) {
-        case 'Enter':
-            startGame();
-            break;
-        case 'w':
-            player1.move(Direction.UP);
-            break;
-        case 's':
-            player1.move(Direction.DOWN);
-            break;
-        case 'ArrowUp':
-            player2.move(Direction.UP);
-            break;
-        case 'ArrowDown':
-            player2.move(Direction.DOWN);
-            break;
-        default:
-            break;
+    keyPress[event.key] = true;
+    if (event.key === 'Enter') {
+        startGame();
     }
 };
 
 function keyUpEvent(event) {
-    // console.log(event);
-    switch (event.key) {
-        case 'w':
-            player1.move(Direction.DOWN);
-            break;
-        case 's':
-            player1.move(Direction.UP);
-            break;
-        case 'ArrowUp':
-            player2.move(Direction.DOWN);
-            break;
-        case 'ArrowDown':
-            player2.move(Direction.UP);
-            break;
-        default:
-            break;
-    }
-}
-
-function replacePaddle() {
-    player1.top = positionBoard.top + (positionBoard.bottom - positionBoard.top) / 2 - player1.height / 2;
-    player1.bottom = player1.top + player1.height;
-    player1.centerY = player1.top + player1.height / 2;
-    player1.paddle.style.top = player1.top + "px";
-
-    player2.top = positionBoard.top + (positionBoard.bottom - positionBoard.top) / 2 - player2.height / 2;
-    player2.bottom = player2.top + player2.height;
-    player2.centerY = player2.top + player2.height / 2;
-    player2.paddle.style.top = player2.top + "px";
-}
-
-function replaceBall() {
-    ball.top = positionBoard.top + (positionBoard.bottom - positionBoard.top) / 2;
-    ball.left = positionBoard.left + (positionBoard.right - positionBoard.left) / 2;
-    ball.right = ball.left + ball.width;
-    ball.bottom = ball.top + ball.height;
-    ball.ball.style.left = ball.left + "px";
-    ball.ball.style.top = ball.top + "px";
-
-    ball.directionX = Math.floor(Math.random() * 2) === 0 ? -1 * ball.speed : 1 * ball.speed;
-    ball.directionY = 0;
-}
-
-function resetGame() {
-    console.log('reset');
-    player1.score = 0;
-    player2.score = 0;
-    player1.scoreDoc.innerHTML = '' + player1.score;
-    player2.scoreDoc.innerHTML = '' + player2.score;
-    replacePaddle();
-    replaceBall();
+    keyPress[event.key] = false;
 }
 
 function getPoint(whoScore) {
@@ -169,7 +121,7 @@ function getPoint(whoScore) {
         if (player1.score === maxPoints) {
             message.innerHTML = 'Player 1 win / Enter to restart';
             gameSate = 'notStarted';
-            return 1;
+            return Do.END;
         }
     } else{
         player2.score++;
@@ -177,11 +129,11 @@ function getPoint(whoScore) {
         if (player2.score === maxPoints) {
             message.innerHTML = 'Player 2 win / Enter to restart';
             gameSate = 'notStarted';
-            return 1;
+            return Do.END;
         }
     }
-    replaceBall();
-    return 0;
+    ball.resetPlace();
+    return Do.CONTINUE;
 }
 
 function getNewDirection(hit) {
@@ -196,16 +148,31 @@ function getNewDirection(hit) {
     setTimeout(moveBall, 10);
 }
 
-async function moveBall() {
+function movePaddle() {
+    if (keyPress['w']) {
+        player1.move(Direction.UP);
+    }
+    if (keyPress['s']) {
+        player1.move(Direction.DOWN);
+    }
+    if (keyPress['ArrowUp']) {
+        player2.move(Direction.UP);
+    }
+    if (keyPress['ArrowDown']) {
+        player2.move(Direction.DOWN);
+    }
+}
+
+function moveBall() {
     // if the ball touch the left or right of the board
     if (ball.left <= positionBoard.left) {
         if (getPoint('right'))
-            return;
+            return Do.END;
     }
     if (ball.right >= positionBoard.right) {
         console.log("player1.score", player1.score);
         if (getPoint('left'))
-            return;
+            return Do.END;
         console.log("player1.score", player1.score);
     }
 
@@ -215,14 +182,14 @@ async function moveBall() {
         && ball.top <= player1.bottom
         && ball.left >= player1.left) {
         getNewDirection('left');
-        return;
+        return Do.CONTINUE;
     }
     if (ball.right >= player2.left
         && ball.bottom >= player2.top
         && ball.top <= player2.bottom
         && ball.right <= player2.right) {
         getNewDirection('right');
-        return;
+        return Do.CONTINUE;
     }
 
     // if the ball touch the top or bottom of the board
@@ -248,7 +215,24 @@ async function moveBall() {
     }
 
     ball.move();
-    setTimeout(moveBall, 10);
+}
+
+function moveAll() {
+    if (moveBall() === Do.END)
+        return ;
+    movePaddle();
+    setTimeout(moveAll, 10);
+}
+
+function resetGame() {
+    console.log('reset');
+    player1.score = 0;
+    player2.score = 0;
+    player1.scoreDoc.innerHTML = '' + player1.score;
+    player2.scoreDoc.innerHTML = '' + player2.score;
+    player1.resetPlace();
+    player2.resetPlace();
+    ball.resetPlace();
 }
 
 function startGame() {
@@ -256,6 +240,6 @@ function startGame() {
         gameSate = 'started';
         message.innerHTML= 'Game is running';
         resetGame();
-        moveBall();
+        moveAll();
     }
 }
