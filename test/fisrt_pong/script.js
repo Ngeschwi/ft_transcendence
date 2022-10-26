@@ -15,6 +15,13 @@ const Direction = {
     DOWN: 1
 }
 
+let tabKeys = {
+    'w': false,
+    's': false,
+    'ArrowUp': false,
+    'ArrowDown': false
+}
+
 class Player {
     constructor(paddle, position, score) {
         this.paddle = paddle;
@@ -76,6 +83,7 @@ player2 = new Player(paddle2, paddle2.getBoundingClientRect(), player2Score);
 ball = new Ball(ballDoc, ballDoc.getBoundingClientRect());
 
 document.addEventListener('keydown', keyDownEvent);
+document.addEventListener('keyup', keyUpEvent);
 
 function keyDownEvent(event) {
     // console.log(event);
@@ -100,6 +108,26 @@ function keyDownEvent(event) {
     }
 };
 
+function keyUpEvent(event) {
+    // console.log(event);
+    switch (event.key) {
+        case 'w':
+            player1.move(Direction.DOWN);
+            break;
+        case 's':
+            player1.move(Direction.UP);
+            break;
+        case 'ArrowUp':
+            player2.move(Direction.DOWN);
+            break;
+        case 'ArrowDown':
+            player2.move(Direction.UP);
+            break;
+        default:
+            break;
+    }
+}
+
 function replacePaddle() {
     player1.top = positionBoard.top + (positionBoard.bottom - positionBoard.top) / 2 - player1.height / 2;
     player1.bottom = player1.top + player1.height;
@@ -115,6 +143,8 @@ function replacePaddle() {
 function replaceBall() {
     ball.top = positionBoard.top + (positionBoard.bottom - positionBoard.top) / 2;
     ball.left = positionBoard.left + (positionBoard.right - positionBoard.left) / 2;
+    ball.right = ball.left + ball.width;
+    ball.bottom = ball.top + ball.height;
     ball.ball.style.left = ball.left + "px";
     ball.ball.style.top = ball.top + "px";
 
@@ -123,32 +153,32 @@ function replaceBall() {
 }
 
 function resetGame() {
+    console.log('reset');
     player1.score = 0;
     player2.score = 0;
     player1.scoreDoc.innerHTML = '' + player1.score;
     player2.scoreDoc.innerHTML = '' + player2.score;
     replacePaddle();
+    replaceBall();
 }
 
 function getPoint(whoScore) {
-    if (whoScore === '1') {
+    if (whoScore === 'left') {
         player1.score++;
+        player1.scoreDoc.innerHTML = '' + player1.score;
         if (player1.score === maxPoints) {
             message.innerHTML = 'Player 1 win / Enter to restart';
             gameSate = 'notStarted';
-            resetGame();
             return 1;
         }
-        player1.scoreDoc.innerHTML = '' + player1.score;
-    } else {
+    } else{
         player2.score++;
+        player2.scoreDoc.innerHTML = '' + player2.score;
         if (player2.score === maxPoints) {
             message.innerHTML = 'Player 2 win / Enter to restart';
             gameSate = 'notStarted';
-            resetGame();
             return 1;
         }
-        player2.scoreDoc.innerHTML = '' + player2.score;
     }
     replaceBall();
     return 0;
@@ -156,31 +186,27 @@ function getPoint(whoScore) {
 
 function getNewDirection(hit) {
     if (hit === 'left') {
-        ball.directionY = Math.tan((player1.centerY - ball.centerY) / (player1.height / 2)) * 2;
+        ball.directionY = Math.tan((ball.centerY - player1.centerY) / (player1.height / 2)) * 2;
         ball.directionX = ball.speed + (Math.abs(ball.directionY) / 2);
     } else {
-        ball.directionY = Math.tan((player2.centerY - ball.centerY) / (player2.height / 2)) * 2;
+        ball.directionY = Math.tan((ball.centerY - player2.centerY) / (player2.height / 2)) * 2;
         ball.directionX = -ball.speed - (Math.abs(ball.directionY) / 2);
     }
+    ball.move();
+    setTimeout(moveBall, 10);
 }
 
-function moveBall() {
-    // if the ball touch the top or bottom of the board
-    if (ball.top <= positionBoard.top) {
-        ball.directionY = -ball.directionY;
-    }
-    if (ball.bottom >= positionBoard.bottom) {
-        ball.directionY = -ball.directionY;
-    }
-
+async function moveBall() {
     // if the ball touch the left or right of the board
     if (ball.left <= positionBoard.left) {
-        if (getPoint('2'))
-            return ;
+        if (getPoint('right'))
+            return;
     }
     if (ball.right >= positionBoard.right) {
-        if (getPoint('1'))
-            return ;
+        console.log("player1.score", player1.score);
+        if (getPoint('left'))
+            return;
+        console.log("player1.score", player1.score);
     }
 
     // if the ball touch the left or right paddle
@@ -189,12 +215,22 @@ function moveBall() {
         && ball.top <= player1.bottom
         && ball.left >= player1.left) {
         getNewDirection('left');
+        return;
     }
     if (ball.right >= player2.left
         && ball.bottom >= player2.top
         && ball.top <= player2.bottom
         && ball.right <= player2.right) {
         getNewDirection('right');
+        return;
+    }
+
+    // if the ball touch the top or bottom of the board
+    if (ball.top <= positionBoard.top) {
+        ball.directionY = -ball.directionY;
+    }
+    if (ball.bottom >= positionBoard.bottom) {
+        ball.directionY = -ball.directionY;
     }
 
     // if the ball the top or bottom of the paddle
@@ -211,8 +247,6 @@ function moveBall() {
         ball.directionY = -ball.directionY;
     }
 
-    //if the ball touch tow things in the same time
-
     ball.move();
     setTimeout(moveBall, 10);
 }
@@ -221,6 +255,7 @@ function startGame() {
     if (gameSate === 'notStarted') {
         gameSate = 'started';
         message.innerHTML= 'Game is running';
+        resetGame();
         moveBall();
     }
 }
