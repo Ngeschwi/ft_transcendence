@@ -1,24 +1,21 @@
-const express = require('express');
-const app = express();
-const http = require('http');
-const server = http.createServer(app);
-const { Server } = require('socket.io');
-const io = new Server(server);
+let express = require('express');
+let app = express();
+let server = require('http').createServer(app);
+let io = require('socket.io')(server);
 
-let idSocket = new Map();
-
-app.get('/', (req, res) => {
+app.use(express.static(__dirname + '/node_modules'));
+app.get('/', function(req, res,next) {
     res.sendFile(__dirname + '/index.html');
 });
 
-io.on('connection', (socket) => {
-    idSocket.set(socket, 1);
-    console.log('a user connected');
-    socket.on('chat message', (msg) => {
-        io.emit('chat message', msg);
-    });
-    socket.on('disconnect', () => {
-        console.log('user disconnected');
+io.on('connection', function(client) {
+    console.log('Client connected...');
+    client.on('join', function(data) {
+        console.log(data);
+        client.on('messages', function(data) {
+            client.emit('broad', data);
+            client.broadcast.emit('broad',data);
+        });
     });
 });
 
