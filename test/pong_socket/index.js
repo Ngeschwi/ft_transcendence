@@ -1,32 +1,272 @@
 // ----- Init Server -----
 
-const express = require('express');
-const app = express();
-const http = require('http');
-const index = http.createServer(app);
-const { Server } = require('socket.io');
-const io = new Server(index);
+let express = require('express');
+let app = express();
+let server = require('http').createServer(app);
+let io = require('socket.io')(server);
 
 app.use(express.static(__dirname + '/node_modules'));
 app.get('/', function(req, res,next) {
     res.sendFile(__dirname + '/pong.html');
 });
 
+// ----- Init Pong -----
+
+let nbrPlayer = 0;
+let gameState = 'notStarted';
+let maxPoints = 5;
+let player;
+let ball;
+
+let positionBoard;
+
+const Direction = {
+    UP:  -1,
+    DOWN: 1
+}
+const Do = {
+    CONTINUE: 0,
+    END: 1
+}
+let keyPress = {};
+
+class Player {
+    constructor(position, score, id, client) {
+        this.id = id;
+        this.client = client;
+        this.speed = 10;
+        this.score = 0;
+        this.top = position.top;
+        this.left = position.left;
+        this.right = position.right;
+        this.bottom = position.bottom;
+        this.height = position.height;
+        this.width = position.width;
+        this.centerY = position.top + position.height / 2;
+    }
+
+    move(way) {
+        if (((keyPress['w'] || keyPress['ArrowUp']) && this.top - this.speed < positionBoard.top)
+            || ((keyPress['s'] || keyPress['ArrowDown']) && this.bottom + this.speed > positionBoard.bottom))
+            return ;
+
+        this.top += this.speed * way;
+        this.bottom += this.speed * way;
+        this.centerY += this.speed * way;
+        this.client.emit('movePaddle', {top: this.top, id: this.id});
+    }
+
+    resetPlace() {
+        this.top = positionBoard.top + (positionBoard.bottom - positionBoard.top) / 2 - this.height / 2;
+        this.bottom = this.top + this.height;
+        this.centerY = this.top + this.height / 2;
+
+        this.client.emit('resetPaddle', this.top);
+    }
+}
+
+class Ball {
+    constructor(position, client) {
+        this.client = client;
+        this.speed = 3;
+        this.top = position.top;
+        this.left = position.left;
+        this.right = position.right;
+        this.bottom = position.bottom;
+        this.height = position.height;
+        this.width = position.width;
+        this.centerY = position.top + position.height / 2;
+        this.directionX = Math.floor(Math.random() * 2) === 0 ? -1 * this.speed : this.speed;
+        this.directionY = 0;
+    }
+
+    move() {
+        this.top += this.directionY * this.speed;
+        this.left += this.directionX * this.speed;
+        this.right = this.left + this.width;
+        this.bottom = this.top + this.height;
+        this.centerY = this.top + this.height / 2;
+
+        this.client.emit('moveBall', {top: this.top, left: this.left});
+    }
+
+    resetPlace() {
+        this.top = positionBoard.top + (positionBoard.bottom - positionBoard.top) / 2;
+        this.left = positionBoard.left + (positionBoard.right - positionBoard.left) / 2;
+        this.right = this.left + this.width;
+        this.bottom = this.top + this.height;
+
+        this.directionX = Math.floor(Math.random() * 2) === 0 ? -1 * this.speed : this.speed;
+        this.directionY = 0;
+
+        this.client.emit('resetBall', {top: this.top, left: this.left});
+    }
+}
+
 io.on('connection', function(client) {
+
     console.log('Client connected...');
-    client.on('join', function(data) {
-        console.log(data);
-        client.emit('messages', 'Hello from index');
+
+    client.on('init', function(data) {
+        positionBoard = data.positionBoard;
+        // attention creation de deux balls
+        ball = new Ball(data.ball, client);
     });
+
+    nbrPlayer++;
+    client.emit('nbrPlayer', nbrPlayer);
+
+    client.on('player_join', function(data) {
+        console.log('Player ' + data.id + ' join');
+        player = new Player(data.position, data.score, data.id, client);
+    });
+
+    // voir pour mieux gerer les touches
+    client.on('keyDown', function(data) {
+        keyPress[data] = true;
+        if (data === 'Enter') {
+            client.emit('startGame');
+            startGame();
+        }
+    });
+    client.on('keyUp', function(data) {
+        keyPress[data] = false;
+    });
+
+    function getPoint(whoScore) {
+        if (whoScore === 'left') {
+            player.score++;
+            client.emit('updateScore', {id: player.id, score: player.score});
+            if (player.score === maxPoints) {
+                client.emit('win', player.id);
+                gameState = 'notStarted';
+                return Do.END;
+            }
+        } else{
+            player.score++;
+            client.emit('updateScore', {id: player.id, score: player.score});
+            if (player.score === maxPoints) {
+                client.emit('win', player.id);
+                gameState = 'notStarted';
+                return Do.END;
+            }
+        }
+        ball.resetPlace();
+        return Do.CONTINUE;
+    }
+
+    function getNewDirection(hit) {
+        if (hit === 'left') {
+            ball.directionY = Math.tan((ball.centerY - player.centerY) / (player.height / 2)) * 2;
+            ball.directionX = ball.speed + (Math.abs(ball.directionY) / 2);
+        } else {
+            ball.directionY = Math.tan((ball.centerY - player.centerY) / (player.height / 2)) * 2;
+            ball.directionX = -ball.speed - (Math.abs(ball.directionY) / 2);
+        }
+        ball.move();
+        setTimeout(moveBall, 10);
+    }
+
+    function movePaddle() {
+        if (keyPress['w']) {
+            player.move(Direction.UP);
+        }
+        if (keyPress['s']) {
+            player.move(Direction.DOWN);
+        }
+        if (keyPress['ArrowUp']) {
+            player.move(Direction.UP);
+        }
+        if (keyPress['ArrowDown']) {
+            player.move(Direction.DOWN);
+        }
+    }
+
+    function moveBall() {
+        // if the ball touch the left or right of the board
+        if (ball.left <= positionBoard.left) {
+            if (getPoint('right'))
+                return Do.END;
+        }
+        if (ball.right >= positionBoard.right) {
+            if (getPoint('left'))
+                return Do.END;
+        }
+
+        // if the ball touch the left or right paddle
+        if (ball.left <= player.right
+            && ball.bottom >= player.top
+            && ball.top <= player.bottom
+            && ball.left >= player.left) {
+            getNewDirection('left');
+            return Do.CONTINUE;
+        }
+        if (ball.right >= player.left
+            && ball.bottom >= player.top
+            && ball.top <= player.bottom
+            && ball.right <= player.right) {
+            getNewDirection('right');
+            return Do.CONTINUE;
+        }
+
+        // if the ball touch the top or bottom of the board
+        if (ball.top <= positionBoard.top) {
+            ball.directionY = -ball.directionY;
+        }
+        if (ball.bottom >= positionBoard.bottom) {
+            ball.directionY = -ball.directionY;
+        }
+
+        // if the ball the top or bottom of the paddle
+        if ((ball.top <= player.bottom
+            || ball.bottom >= player.top)
+            && ball.left <= player.right
+            && ball.right >= player.left) {
+            ball.directionY = -ball.directionY;
+        }
+        if ((ball.bottom >= player.top
+            || ball.top <= player.bottom)
+            && ball.left <= player.right
+            && ball.right >= player.left) {
+            ball.directionY = -ball.directionY;
+        }
+
+        ball.move();
+    }
+
+    function moveAll() {
+        if (moveBall() === Do.END)
+            return ;
+        movePaddle();
+        setTimeout(moveAll, 10);
+    }
+
+    function resetGame() {
+        console.log('reset');
+        player.score = 0;
+        player.score = 0;
+        player.resetPlace();
+        player.resetPlace();
+        ball.resetPlace();
+    }
+
+    function startGame() {
+        if (gameState === 'notStarted') {
+            gameState = 'started';
+            resetGame();
+            moveAll();
+        }
+    }
 });
 
-index.listen(3000, () => {
-    console.log('Server is running on port 3000 ...');
+
+server.listen(3000, () => {
+    console.log('Server is running on port 3000');
 });
 
 // ----- Init Pong -----
 
-// let gameSate = 'notStarted';
+// let gameState = 'notStarted';
 // let maxPoints = 10;
 //
 // let paddle1 = document.getElementById('paddle1');
@@ -148,7 +388,7 @@ index.listen(3000, () => {
 //         player1.scoreDoc.innerHTML = '' + player1.score;
 //         if (player1.score === maxPoints) {
 //             message.innerHTML = 'Player 1 win / Enter to restart';
-//             gameSate = 'notStarted';
+//             gameState = 'notStarted';
 //             return Do.END;
 //         }
 //     } else{
@@ -156,7 +396,7 @@ index.listen(3000, () => {
 //         player2.scoreDoc.innerHTML = '' + player2.score;
 //         if (player2.score === maxPoints) {
 //             message.innerHTML = 'Player 2 win / Enter to restart';
-//             gameSate = 'notStarted';
+//             gameState = 'notStarted';
 //             return Do.END;
 //         }
 //     }
@@ -264,8 +504,8 @@ index.listen(3000, () => {
 // }
 //
 // function startGame() {
-//     if (gameSate === 'notStarted') {
-//         gameSate = 'started';
+//     if (gameState === 'notStarted') {
+//         gameState = 'started';
 //         message.innerHTML= 'Game is running';
 //         resetGame();
 //         moveAll();

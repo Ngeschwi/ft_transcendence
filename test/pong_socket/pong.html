@@ -119,16 +119,126 @@
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
-<script src="client.js">
+<script>
+    // ----- Connect socket.io -----
+
     let socket = io.connect('http://localhost:3000');
 
-    socket.on('connect', function(data) {
-        socket.emit('join', 'Hello World from client');
+    // ----- Init Pong -----
+
+    let paddle1 = document.getElementById('paddle1');
+    let paddle2 = document.getElementById('paddle2');
+    let player1Score = document.getElementById('player_1_score');
+    let player2Score = document.getElementById('player_2_score');
+    let message = document.getElementById('message');
+    let ballDoc = document.getElementById('ball');
+    let board = document.getElementById('board');
+    let positionBoard = board.getBoundingClientRect();
+
+    class Player {
+        constructor(score) {
+            this.scoreDoc = score;
+        }
+
+        move(top) {
+            this.paddle.style.top = top + "px";
+        }
+
+        resetPlace(top) {
+            this.paddle.style.top = top + "px";
+        }
+    }
+
+    class Ball {
+        constructor(ball) {
+            this.ball = ball;
+        }
+
+        move(top, left) {
+            this.ball.style.left = left + "px";
+            this.ball.style.top = top + "px";
+        }
+
+        resetPlace(top, left) {
+            this.ball.style.left = left + "px";
+            this.ball.style.top = top + "px";
+        }
+    }
+
+    player1 = new Player(paddle1, paddle1.getBoundingClientRect(), player1Score, 1);
+    player2 = new Player(paddle2, paddle2.getBoundingClientRect(), player2Score, 1);
+    ball = new Ball(ballDoc, ballDoc.getBoundingClientRect());
+
+    document.addEventListener('keydown', keyDownEvent);
+    document.addEventListener('keyup', keyUpEvent);
+
+    function keyDownEvent(event) {
+        socket.emit('keyDown', event.key);
+    }
+
+    function keyUpEvent(event) {
+        socket.emit('keyUp', event.key);
+    }
+    // ------------------
+    // ----- Socket -----
+    // ------------------
+
+    socket.on('connect', function() {
+        socket.emit('init', {positionBoard: positionBoard, ball: ballDoc.getBoundingClientRect()});
     });
 
-    socket.on('messages', function(data) {
+    socket.on('nbrPlayer', function(nbrPlayer) {
+        if (nbrPlayer === 1) {
+            socket.emit('player_join', {position: paddle1.getBoundingClientRect(), score: player1Score, id: 1});
+        } else if (nbrPlayer === 2) {
+            socket.emit('player_join', {position: paddle2.getBoundingClientRect(), score: player2Score, id: 2});
+        }
+    });
+
+    socket.on('startGame', function() {
+        message.innerHTML = 'Game Start';
+        player1.scoreDoc.innerHTML = '0';
+        player2.scoreDoc.innerHTML = '0';
+    });
+
+    socket.on('resetBall', function(data) {
+        ball.resetPlace(data.top, data.left);
+    });
+    socket.on('resetPaddle', function(data) {
+        player1.resetPlace(data);
+        player2.resetPlace(data);
+    });
+
+    socket.on('moveBall', function(data) {
+        ball.move(data.top, data.left);
+    });
+    socket.on('movePaddle', function(data) {
+        if (data.id === 1) {
+            player1.move(data.top);
+        } else if (data.id === 2) {
+            player2.move(data.top);
+        }
+    });
+
+    socket.on('updateScore', function(data) {
+        if (data.id === 1) {
+            player1.scoreDoc.innerHTML = '' + data.score;
+        } else if (data.id === 2) {
+            player2.scoreDoc.innerHTML = '' + data.score;
+        }
+    });
+    socket.on('win', function(data) {
+        if (data.id === 1) {
+            message.innerHTML = 'Player 1 Win';
+        } else if (data.id === 2) {
+            message.innerHTML = 'Player 2 Win';
+        }
+    });
+
+    socket.on('alert_messages', function(data) {
         alert(data);
     });
+
 </script>
 </body>
 
