@@ -6,7 +6,7 @@
     <meta name="viewport" content=
             "width=device-width, initial-scale=1.0">
     <title>PONG GAME</title>
-    <link rel="stylesheet" type="text/css" href="style.css">
+<!--    <link rel="stylesheet" type="text/css" href="style.css">-->
     <style type="text/css">
         * {
             margin: 0;
@@ -122,7 +122,7 @@
 <script>
     // ----- Connect socket.io -----
 
-    let socket = io.connect('http://localhost:3000');
+    let socket = io.connect('http://10.1.8.2:3000');
 
     // ----- Init Pong -----
 
@@ -136,37 +136,39 @@
     let positionBoard = board.getBoundingClientRect();
 
     class Player {
-        constructor(score) {
+        constructor(score, paddle) {
             this.scoreDoc = score;
+            this.paddleDoc = paddle;
         }
 
         move(top) {
-            this.paddle.style.top = top + "px";
+            this.paddleDoc.style.top = top + "px";
         }
 
         resetPlace(top) {
-            this.paddle.style.top = top + "px";
+            this.paddleDoc.style.top = top + "px";
         }
     }
 
     class Ball {
         constructor(ball) {
             this.ball = ball;
+            this.ballDoc = ballDoc;
         }
 
         move(top, left) {
-            this.ball.style.left = left + "px";
-            this.ball.style.top = top + "px";
+            this.ballDoc.style.left = left + "px";
+            this.ballDoc.style.top = top + "px";
         }
 
         resetPlace(top, left) {
-            this.ball.style.left = left + "px";
-            this.ball.style.top = top + "px";
+            this.ballDoc.style.left = left + "px";
+            this.ballDoc.style.top = top + "px";
         }
     }
 
-    player1 = new Player(paddle1, paddle1.getBoundingClientRect(), player1Score, 1);
-    player2 = new Player(paddle2, paddle2.getBoundingClientRect(), player2Score, 1);
+    player1 = new Player(player1Score, paddle1);
+    player2 = new Player(player2Score, paddle2);
     ball = new Ball(ballDoc, ballDoc.getBoundingClientRect());
 
     document.addEventListener('keydown', keyDownEvent);
@@ -179,19 +181,20 @@
     function keyUpEvent(event) {
         socket.emit('keyUp', event.key);
     }
+
     // ------------------
     // ----- Socket -----
     // ------------------
 
     socket.on('connect', function() {
-        socket.emit('init', {positionBoard: positionBoard, ball: ballDoc.getBoundingClientRect()});
+        socket.emit('init', positionBoard);
     });
 
     socket.on('nbrPlayer', function(nbrPlayer) {
         if (nbrPlayer === 1) {
-            socket.emit('player_join', {position: paddle1.getBoundingClientRect(), score: player1Score, id: 1});
+            socket.emit('player_join', {ballPosition: ballDoc.getBoundingClientRect(), position: paddle1.getBoundingClientRect(), score: player1Score, id: 1});
         } else if (nbrPlayer === 2) {
-            socket.emit('player_join', {position: paddle2.getBoundingClientRect(), score: player2Score, id: 2});
+            socket.emit('player_join', {ballPosition: ballDoc.getBoundingClientRect(), position: paddle2.getBoundingClientRect(), score: player2Score, id: 2});
         }
     });
 
@@ -213,6 +216,13 @@
         ball.move(data.top, data.left);
     });
     socket.on('movePaddle', function(data) {
+        if (data.id === 1) {
+            player1.move(data.top);
+        } else if (data.id === 2) {
+            player2.move(data.top);
+        }
+    });
+    socket.on('moveOtherPaddle', function(data) {
         if (data.id === 1) {
             player1.move(data.top);
         } else if (data.id === 2) {
