@@ -29,13 +29,14 @@
             background: #000000;
             border: solid 5px #ffffff;
             border-radius: 2px;
+            position: relative;
         }
 
         .ball {
+            position: absolute;
             height: 30px;
             width: 30px;
             border-radius: 50%;
-            position: fixed;
             top: calc(50% - 15px);
             left: calc(50% - 15px);
         }
@@ -56,21 +57,21 @@
         /*}*/
 
         .paddle {
-            height: 200px;
+            position: absolute;
+            height: 20vh;
             width: 18px;
-            position: fixed;
             border-radius: 2px;
         }
 
         .paddle_1 {
-            top: calc(50vh - 100px);
-            left: calc(10vw + 30px);
+            top: 40vh;
+            left: 2vw;
             background: #ffffff;
         }
 
         .paddle_2 {
-            top: calc(50vh - 100px);
-            right: calc(10vw + 30px);
+            top: 40vh;
+            right: 2vw;
             background: #ffffff;
         }
 
@@ -122,7 +123,7 @@
 <script>
     // ----- Connect socket.io -----
 
-    let socket = io.connect('http://10.2.7.2:3000');
+    let socket = io.connect('http://localhost:3000');
 
     // ----- Init Pong -----
 
@@ -144,7 +145,7 @@
         }
 
         move(top) {
-            this.paddleDoc.style.top = top + "px";
+            this.paddleDoc.style.top = top + "%";
         }
 
         resetPlace(top) {
@@ -159,8 +160,8 @@
         }
 
         move(top, left) {
-            this.ballDoc.style.left = left + "px";
-            this.ballDoc.style.top = top + "px";
+            this.ballDoc.style.top = top + "%";
+            this.ballDoc.style.left = left + "%";
         }
 
         resetPlace(top, left) {
@@ -200,9 +201,9 @@
 
     socket.on('nbrPlayer', function(nbrPlayer) {
         if (nbrPlayer === 1) {
-            socket.emit('player_join', {ballPosition: ballDoc.getBoundingClientRect(), position: paddle1.getBoundingClientRect(), score: player1Score, id: 1});
+            socket.emit('player_join', {ballPosition: ballDoc.getBoundingClientRect(), position: paddle1.getBoundingClientRect(), score: player1Score, id: 1, boardHeight: board.offsetHeight, boardWidth: board.offsetWidth});
         } else if (nbrPlayer === 2) {
-            socket.emit('player_join', {ballPosition: ballDoc.getBoundingClientRect(), position: paddle2.getBoundingClientRect(), score: player2Score, id: 2});
+            socket.emit('player_join', {ballPosition: ballDoc.getBoundingClientRect(), position: paddle2.getBoundingClientRect(), score: player2Score, id: 2, boardHeight: board.offsetHeight, boardWidth: board.offsetWidth});
         } else {
             imSpectator = true;
             console.log('Spectator');

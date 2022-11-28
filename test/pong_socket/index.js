@@ -33,10 +33,11 @@ const Do = {
 let keyPress = {};
 
 class Player {
-    constructor(position, score, id, client) {
+    constructor(position, score, id, client, boardHeight, boardWidth) {
         this.id = id;
         this.client = client;
-        this.speed = 10;
+        this.speedPercent = 1;
+        this.speed = boardHeight * this.speedPercent / 100;
         this.score = 0;
         this.top = position.top;
         this.left = position.left;
@@ -45,20 +46,30 @@ class Player {
         this.height = position.height;
         this.width = position.width;
         this.centerY = position.top + position.height / 2;
+        this.topPercent = (position.top / boardHeight) * 100;
+        this.bottomPercent = (position.bottom / boardHeight) * 100;
+        this.leftPercent = (position.left / boardWidth) * 100;
+        this.rightPercent = (position.right / boardWidth) * 100;
+
+        this.boardWidth = boardWidth; //useless for the moment
     }
 
     move(way) {
-        if (((keyPress['w'] || keyPress['ArrowUp']) && this.top - this.speed < positionBoard.top)
-            || ((keyPress['s'] || keyPress['ArrowDown']) && this.bottom + this.speed > positionBoard.bottom))
+
+        if (((keyPress['w'] || keyPress['ArrowUp']) && this.topPercent - this.speed < 0)
+            || ((keyPress['s'] || keyPress['ArrowDown']) && this.bottomPercent + this.speed > 100))
             return ;
 
         this.top += this.speed * way;
         this.bottom += this.speed * way;
         this.centerY += this.speed * way;
 
-        this.client.emit('movePaddle', {top: this.top, id: this.id});
+        this.topPercent += this.speedPercent * way;
+        this.bottomPercent += this.speedPercent * way;
+
+        this.client.emit('movePaddle', {top: this.topPercent, id: this.id});
         for (let id in spectators) {
-            spectators[id].emit('movePaddle', {top: this.top, id: this.id});
+            spectators[id].emit('movePaddle', {top: this.topPercent, id: this.id});
         }
     }
 
@@ -75,10 +86,11 @@ class Player {
 }
 
 class Ball {
-    constructor(position, player1, player2) {
+    constructor(position, player1, player2, boardHeight, boardWidth) {
         this.player1 = player1;
         this.player2 = player2;
-        this.speed = 3;
+        this.speedPercent = 0.1;
+        this.speed = boardHeight * this.speedPercent / 100;
         this.top = position.top;
         this.left = position.left;
         this.right = position.right;
@@ -88,6 +100,10 @@ class Ball {
         this.centerY = position.top + position.height / 2;
         this.directionX = Math.floor(Math.random() * 2) === 0 ? -1 * this.speed : this.speed;
         this.directionY = 0;
+        this.topPercent = (position.top / boardHeight) * 100;
+        this.bottomPercent = (position.bottom / boardHeight) * 100;
+        this.leftPercent = (position.left / boardWidth) * 100;
+        this.rightPercent = (position.right / boardWidth) * 100;
     }
 
     move() {
@@ -97,10 +113,13 @@ class Ball {
         this.bottom = this.top + this.height;
         this.centerY = this.top + this.height / 2;
 
-        this.player1.client.emit('moveBall', {top: this.top, left: this.left});
-        this.player2.client.emit('moveBall', {top: this.top, left: this.left});
+        this.topPercent += this.directionY * this.speedPercent;
+        this.leftPercent += this.directionX * this.speedPercent;
+
+        this.player1.client.emit('moveBall', {top: this.topPercent, left: this.leftPercent});
+        this.player2.client.emit('moveBall', {top: this.topPercent, left: this.leftPercent});
         for (let id in spectators) {
-            spectators[id].emit('moveBall', {top: this.top, left: this.left});
+            spectators[id].emit('moveBall', {top: this.topPercent, left: this.leftPercent});
         }
     }
 
@@ -166,30 +185,30 @@ function getNewDirection(hit) {
 function movePaddle() {
     if (keyPress['w']) {
         player1.move(Direction.UP);
-        player2.client.emit('moveOtherPaddle', {top: player1.top, id: player1.id});
+        player2.client.emit('moveOtherPaddle', {top: player1.topPercent, id: player1.id});
         for (let id in spectators) {
-            spectators[id].emit('moveOtherPaddle', {top: player1.top, id: player1.id});
+            spectators[id].emit('moveOtherPaddle', {top: player1.topPercent, id: player1.id});
         }
     }
     if (keyPress['s']) {
         player1.move(Direction.DOWN);
-        player2.client.emit('moveOtherPaddle', {top: player1.top, id: player1.id});
+        player2.client.emit('moveOtherPaddle', {top: player1.topPercent, id: player1.id});
         for (let id in spectators) {
-            spectators[id].emit('moveOtherPaddle', {top: player1.top, id: player1.id});
+            spectators[id].emit('moveOtherPaddle', {top: player1.topPercent, id: player1.id});
         }
     }
     if (keyPress['ArrowUp']) {
         player2.move(Direction.UP);
-        player1.client.emit('moveOtherPaddle', {top: player2.top, id: player2.id});
+        player1.client.emit('moveOtherPaddle', {top: player2.topPercent, id: player2.id});
         for (let id in spectators) {
-            spectators[id].emit('moveOtherPaddle', {top: player2.top, id: player2.id});
+            spectators[id].emit('moveOtherPaddle', {top: player2.topPercent, id: player2.id});
         }
     }
     if (keyPress['ArrowDown']) {
         player2.move(Direction.DOWN);
-        player1.client.emit('moveOtherPaddle', {top: player2.top, id: player2.id});
+        player1.client.emit('moveOtherPaddle', {top: player2.topPercent, id: player2.id});
         for (let id in spectators) {
-            spectators[id].emit('moveOtherPaddle', {top: player2.top, id: player2.id});
+            spectators[id].emit('moveOtherPaddle', {top: player2.topPercent, id: player2.id});
         }
     }
 }
@@ -292,11 +311,11 @@ io.on('connection', function(client) {
     client.on('player_join', function(data) {
         if (data.id === 1) {
             console.log('Player ' + data.id + ' join');
-            player1 = new Player(data.position, data.score, data.id, client);
+            player1 = new Player(data.position, data.score, data.id, client, data.boardHeight, data.boardWidth);
         } else if (data.id === 2) {
             console.log('Player ' + data.id + ' join');
-            player2 = new Player(data.position, data.score, data.id, client);
-            ball = new Ball(data.ballPosition, player1, player2);
+            player2 = new Player(data.position, data.score, data.id, client, data.boardHeight, data.boardWidth);
+            ball = new Ball(data.ballPosition, player1, player2, data.boardHeight, data.boardWidth);
         } else {
             spectators[data.id] = client;
             console.log('Spectator ' + data.id + ' join');
