@@ -33,109 +33,117 @@ const Do = {
 let keyPress = {};
 
 class Player {
-    constructor(position, score, id, client, boardHeight, boardWidth) {
+    constructor(position, id, client, board) {
         this.id = id;
         this.client = client;
-        this.speedPercent = 1;
-        this.speed = boardHeight * this.speedPercent / 100;
+        this.speed = 1;
         this.score = 0;
-        this.top = position.top;
-        this.left = position.left;
-        this.right = position.right;
-        this.bottom = position.bottom;
-        this.height = position.height;
-        this.width = position.width;
-        this.centerY = position.top + position.height / 2;
-        this.topPercent = (position.top / boardHeight) * 100;
-        this.bottomPercent = (position.bottom / boardHeight) * 100;
-        this.leftPercent = (position.left / boardWidth) * 100;
-        this.rightPercent = (position.right / boardWidth) * 100;
+        this.size = {
+            width: (position.width / board.width) * 100,
+            height: (position.height / board.height) * 100
+        };
+        this.coordCenter = {
+            x: (this.size.width / 2) + (((position.left - board.left) / board.width) * 100),
+            y: (this.size.height / 2) + (((position.top - board.top) / board.height) * 100)
+        };
+        this.coord = {
+            top: this.coordCenter.y - this.size.height / 2,
+            bottom: this.coordCenter.y + this.size.height / 2,
+            left: this.coordCenter.x - this.size.width / 2,
+            right: this.coordCenter.x + this.size.width / 2
+        };
+    }
 
-        this.boardWidth = boardWidth; //useless for the moment
+    getNewPosition() {
+        this.coord.top = this.coordCenter.y - this.size.height / 2;
+        this.coord.bottom = this.coordCenter.y + this.size.height / 2;
+        this.coord.left = this.coordCenter.x - this.size.width / 2;
+        this.coord.right = this.coordCenter.x + this.size.width / 2;
     }
 
     move(way) {
 
-        if (((keyPress['w'] || keyPress['ArrowUp']) && this.topPercent - this.speed < 0)
-            || ((keyPress['s'] || keyPress['ArrowDown']) && this.bottomPercent + this.speed > 100))
-            return ;
+        if ((keyPress['w'] || keyPress['ArrowUp']) && this.coord.top - this.speed < 0) {
+            this.coordCenter.y = this.size.height / 2;
+        } else if ((keyPress['s'] || keyPress['ArrowDown']) && this.coord.bottom + this.speed > 100) {
+            this.coordCenter.y = 100 - this.size.height / 2;
+        } else {
+            this.coordCenter.y += this.speed * way;
+        }
 
-        this.top += this.speed * way;
-        this.bottom += this.speed * way;
-        this.centerY += this.speed * way;
+        this.getNewPosition();
 
-        this.topPercent += this.speedPercent * way;
-        this.bottomPercent += this.speedPercent * way;
-
-        this.client.emit('movePaddle', {top: this.topPercent, id: this.id});
+        this.client.emit('movePaddle', {top: this.coord.top, id: this.id});
         for (let id in spectators) {
-            spectators[id].emit('movePaddle', {top: this.topPercent, id: this.id});
+            spectators[id].emit('movePaddle', {top: this.coord.top, id: this.id});
         }
     }
 
     resetPlace() {
-        this.top = positionBoard.top + (positionBoard.bottom - positionBoard.top) / 2 - this.height / 2;
-        this.bottom = this.top + this.height;
-        this.centerY = this.top + this.height / 2;
+        this.coordCenter.y = 50;
+        this.getNewPosition();
 
-        this.client.emit('resetPaddle', this.top);
+        this.client.emit('resetPaddle', this.coord.top);
         for (let id in spectators) {
-            spectators[id].emit('resetPaddle', this.top);
+            spectators[id].emit('resetPaddle', this.coord.top);
         }
     }
 }
 
 class Ball {
-    constructor(position, player1, player2, boardHeight, boardWidth) {
+    constructor(position, player1, player2, board) {
         this.player1 = player1;
         this.player2 = player2;
-        this.speedPercent = 0.1;
-        this.speed = boardHeight * this.speedPercent / 100;
-        this.top = position.top;
-        this.left = position.left;
-        this.right = position.right;
-        this.bottom = position.bottom;
-        this.height = position.height;
-        this.width = position.width;
-        this.centerY = position.top + position.height / 2;
+        this.speed = 0.5;
         this.directionX = Math.floor(Math.random() * 2) === 0 ? -1 * this.speed : this.speed;
         this.directionY = 0;
-        this.topPercent = (position.top / boardHeight) * 100;
-        this.bottomPercent = (position.bottom / boardHeight) * 100;
-        this.leftPercent = (position.left / boardWidth) * 100;
-        this.rightPercent = (position.right / boardWidth) * 100;
+        this.size = {
+            width: (position.width / board.width) * 100,
+            height: (position.height / board.height) * 100
+        };
+        this.coordCenter = {
+            x: (this.size.width / 2) + (((position.left - board.left)/ board.width) * 100),
+            y: (this.size.height / 2) + (((position.top - board.top)/ board.height) * 100)
+        };
+        this.coord = {
+            top: this.coordCenter.y - this.size.height / 2,
+            bottom: this.coordCenter.y + this.size.height / 2,
+            left: this.coordCenter.x - this.size.width / 2,
+            right: this.coordCenter.x + this.size.width / 2
+        };
     }
 
+    getNewPosition() {
+        this.coord.top = this.coordCenter.y - this.size.height / 2;
+        this.coord.bottom = this.coordCenter.y + this.size.height / 2;
+        this.coord.left = this.coordCenter.x - this.size.width / 2;
+        this.coord.right = this.coordCenter.x + this.size.width / 2;
+    }
+    
     move() {
-        this.top += this.directionY * this.speed;
-        this.left += this.directionX * this.speed;
-        this.right = this.left + this.width;
-        this.bottom = this.top + this.height;
-        this.centerY = this.top + this.height / 2;
+        this.coordCenter.x += this.directionX * this.speed;
+        this.coordCenter.y += this.directionY * this.speed;
+        this.getNewPosition();
 
-        this.topPercent += this.directionY * this.speedPercent;
-        this.leftPercent += this.directionX * this.speedPercent;
-
-        this.player1.client.emit('moveBall', {top: this.topPercent, left: this.leftPercent});
-        this.player2.client.emit('moveBall', {top: this.topPercent, left: this.leftPercent});
+        this.player1.client.emit('moveBall', {top: this.coord.top, left: this.coord.left});
+        this.player2.client.emit('moveBall', {top: this.coord.top, left: this.coord.left});
         for (let id in spectators) {
-            spectators[id].emit('moveBall', {top: this.topPercent, left: this.leftPercent});
+            spectators[id].emit('moveBall', {top: this.coord.top, left: this.coord.left});
         }
     }
 
     resetPlace() {
-        this.top = positionBoard.top + (positionBoard.bottom - positionBoard.top) / 2;
-        this.left = positionBoard.left + (positionBoard.right - positionBoard.left) / 2;
-        this.right = this.left + this.width;
-        this.bottom = this.top + this.height;
+        this.coordCenter.x = 50;
+        this.coordCenter.y = 50;
+        this.getNewPosition();
 
         this.directionX = Math.floor(Math.random() * 2) === 0 ? -1 * this.speed : this.speed;
         this.directionY = 0;
 
-        this.player1.client.emit('resetBall', {top: this.top, left: this.left});
-        this.player2.client.emit('resetBall', {top: this.top, left: this.left});
+        this.player1.client.emit('resetBall', {top: this.coord.top, left: this.coord.left});
+        this.player2.client.emit('resetBall', {top: this.coord.top, left: this.coord.left});
         for (let id in spectators) {
-            spectators[id].emit('resetBall', {top: this.top, left: this.left});
+            spectators[id].emit('resetBall', {top: this.coord.top, left: this.coord.left});
         }
     }
 }
@@ -149,7 +157,8 @@ function getPoint(whoScore) {
             spectators[id].emit('updateScore', {id: player1.id, score: player1.score});
         }
         if (player1.score === maxPoints) {
-            player1.client.emit('win', player1.id);
+            player1.client.emit('someoneWin', player1.id);
+            player2.client.emit('someoneWin', player1.id);
             gameState = 'notStarted';
             return Do.END;
         }
@@ -161,7 +170,8 @@ function getPoint(whoScore) {
             spectators[id].emit('updateScore', {id: player2.id, score: player2.score});
         }
         if (player2.score === maxPoints) {
-            player2.client.emit('win', player2.id);
+            player2.client.emit('someoneWin', player2.id);
+            player1.client.emit('someoneWin', player2.id);
             gameState = 'notStarted';
             return Do.END;
         }
@@ -172,10 +182,10 @@ function getPoint(whoScore) {
 
 function getNewDirection(hit) {
     if (hit === 'left') {
-        ball.directionY = Math.tan((ball.centerY - player1.centerY) / (player1.height / 2)) * 2;
+        ball.directionY = Math.tan((ball.coordCenter.y - player1.coordCenter.y) / (player1.size.height / 2)) * 2;
         ball.directionX = ball.speed + (Math.abs(ball.directionY) / 2);
     } else {
-        ball.directionY = Math.tan((ball.centerY - player2.centerY) / (player2.height / 2)) * 2;
+        ball.directionY = Math.tan((ball.coordCenter.y - player2.coordCenter.y) / (player2.size.height / 2)) * 2;
         ball.directionX = -ball.speed - (Math.abs(ball.directionY) / 2);
     }
     ball.move();
@@ -185,80 +195,80 @@ function getNewDirection(hit) {
 function movePaddle() {
     if (keyPress['w']) {
         player1.move(Direction.UP);
-        player2.client.emit('moveOtherPaddle', {top: player1.topPercent, id: player1.id});
+        player2.client.emit('moveOtherPaddle', {top: player1.coord.top, id: player1.id});
         for (let id in spectators) {
-            spectators[id].emit('moveOtherPaddle', {top: player1.topPercent, id: player1.id});
+            spectators[id].emit('moveOtherPaddle', {top: player1.coord.top, id: player1.id});
         }
     }
     if (keyPress['s']) {
         player1.move(Direction.DOWN);
-        player2.client.emit('moveOtherPaddle', {top: player1.topPercent, id: player1.id});
+        player2.client.emit('moveOtherPaddle', {top: player1.coord.top, id: player1.id});
         for (let id in spectators) {
-            spectators[id].emit('moveOtherPaddle', {top: player1.topPercent, id: player1.id});
+            spectators[id].emit('moveOtherPaddle', {top: player1.coord.top, id: player1.id});
         }
     }
     if (keyPress['ArrowUp']) {
         player2.move(Direction.UP);
-        player1.client.emit('moveOtherPaddle', {top: player2.topPercent, id: player2.id});
+        player1.client.emit('moveOtherPaddle', {top: player2.coord.top, id: player2.id});
         for (let id in spectators) {
-            spectators[id].emit('moveOtherPaddle', {top: player2.topPercent, id: player2.id});
+            spectators[id].emit('moveOtherPaddle', {top: player2.coord.top, id: player2.id});
         }
     }
     if (keyPress['ArrowDown']) {
         player2.move(Direction.DOWN);
-        player1.client.emit('moveOtherPaddle', {top: player2.topPercent, id: player2.id});
+        player1.client.emit('moveOtherPaddle', {top: player2.coord.top, id: player2.id});
         for (let id in spectators) {
-            spectators[id].emit('moveOtherPaddle', {top: player2.topPercent, id: player2.id});
+            spectators[id].emit('moveOtherPaddle', {top: player2.coord.top, id: player2.id});
         }
     }
 }
 
 function moveBall() {
     // if the ball touch the left or right of the board
-    if (ball.left <= positionBoard.left) {
+    if (ball.coord.left <= 0) {
         if (getPoint('right'))
             return Do.END;
     }
-    if (ball.right >= positionBoard.right) {
+    if (ball.coord.right >= 100) {
         if (getPoint('left'))
             return Do.END;
     }
 
     // if the ball touch the left or right paddle
-    if (ball.left <= player1.right
-        && ball.bottom >= player1.top
-        && ball.top <= player1.bottom
-        && ball.left >= player1.left) {
+    if (ball.coord.left <= player1.coord.right
+        && ball.coord.bottom >= player1.coord.top
+        && ball.coord.top <= player1.coord.bottom
+        && ball.coord.left >= player1.coord.left) {
         getNewDirection('left');
         return Do.CONTINUE;
     }
-    if (ball.right >= player2.left
-        && ball.bottom >= player2.top
-        && ball.top <= player2.bottom
-        && ball.right <= player2.right) {
+    if (ball.coord.right >= player2.coord.left
+        && ball.coord.bottom >= player2.coord.top
+        && ball.coord.top <= player2.coord.bottom
+        && ball.coord.right <= player2.coord.right) {
         getNewDirection('right');
         return Do.CONTINUE;
     }
 
     // if the ball touch the top or bottom of the board
-    if (ball.top <= positionBoard.top) {
+    if (ball.coord.top <= 0) {
         ball.directionY = -ball.directionY;
     }
-    if (ball.bottom >= positionBoard.bottom) {
+    if (ball.coord.bottom >= 100) {
         ball.directionY = -ball.directionY;
     }
 
     // if the ball the top or bottom of the paddle
-    if ((ball.top <= player1.bottom
-        || ball.bottom >= player1.top)
-        && ball.left <= player1.right
-        && ball.right >= player1.left) {
+    if ((ball.coord.top <= player1.coord.bottom
+        || ball.coord.bottom >= player1.coord.top)
+        && ball.coord.left <= player1.coord.right
+        && ball.coord.right >= player1.coord.left) {
         ball.directionY = -ball.directionY;
     }
-    if ((ball.bottom >= player2.top
-        || ball.top <= player2.bottom)
-        && ball.left <= player2.right
-        && ball.right >= player2.left) {
+    if ((ball.coord.bottom >= player2.coord.top
+        || ball.coord.top <= player2.coord.bottom)
+        && ball.coord.left <= player2.coord.right
+        && ball.coord.right >= player2.coord.left) {
         ball.directionY = -ball.directionY;
     }
 
@@ -311,14 +321,16 @@ io.on('connection', function(client) {
     client.on('player_join', function(data) {
         if (data.id === 1) {
             console.log('Player ' + data.id + ' join');
-            player1 = new Player(data.position, data.score, data.id, client, data.boardHeight, data.boardWidth);
+            player1 = new Player(data.position, data.id, client, data.board);
         } else if (data.id === 2) {
             console.log('Player ' + data.id + ' join');
-            player2 = new Player(data.position, data.score, data.id, client, data.boardHeight, data.boardWidth);
-            ball = new Ball(data.ballPosition, player1, player2, data.boardHeight, data.boardWidth);
+            player2 = new Player(data.position, data.id, client, data.board);
         } else {
             spectators[data.id] = client;
             console.log('Spectator ' + data.id + ' join');
+        }
+        if (!ball && player1 && player2) {
+            ball = new Ball(data.ballPosition, player1, player2, data.board);
         }
     });
 

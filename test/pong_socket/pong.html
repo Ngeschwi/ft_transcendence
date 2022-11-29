@@ -24,12 +24,12 @@
         }
 
         .board {
+            position: relative;
             height: 85vh;
             width: 80vw;
             background: #000000;
             border: solid 5px #ffffff;
             border-radius: 2px;
-            position: relative;
         }
 
         .ball {
@@ -59,20 +59,18 @@
         .paddle {
             position: absolute;
             height: 20vh;
-            width: 18px;
+            width: 1.5vw;
+            top: calc(50% - 10vh);
             border-radius: 2px;
+            background: #ffffff;
         }
 
         .paddle_1 {
-            top: 40vh;
             left: 2vw;
-            background: #ffffff;
         }
 
         .paddle_2 {
-            top: 40vh;
             right: 2vw;
-            background: #ffffff;
         }
 
         .player_1_score {
@@ -149,7 +147,7 @@
         }
 
         resetPlace(top) {
-            this.paddleDoc.style.top = top + "px";
+            this.paddleDoc.style.top = top + "%";
         }
     }
 
@@ -165,8 +163,8 @@
         }
 
         resetPlace(top, left) {
-            this.ballDoc.style.left = left + "px";
-            this.ballDoc.style.top = top + "px";
+            this.ballDoc.style.top = top + "%";
+            this.ballDoc.style.left = left + "%";
         }
     }
 
@@ -201,9 +199,9 @@
 
     socket.on('nbrPlayer', function(nbrPlayer) {
         if (nbrPlayer === 1) {
-            socket.emit('player_join', {ballPosition: ballDoc.getBoundingClientRect(), position: paddle1.getBoundingClientRect(), score: player1Score, id: 1, boardHeight: board.offsetHeight, boardWidth: board.offsetWidth});
+            socket.emit('player_join', {ballPosition: ballDoc.getBoundingClientRect(), position: paddle1.getBoundingClientRect(), id: 1, board: board.getBoundingClientRect()});
         } else if (nbrPlayer === 2) {
-            socket.emit('player_join', {ballPosition: ballDoc.getBoundingClientRect(), position: paddle2.getBoundingClientRect(), score: player2Score, id: 2, boardHeight: board.offsetHeight, boardWidth: board.offsetWidth});
+            socket.emit('player_join', {ballPosition: ballDoc.getBoundingClientRect(), position: paddle2.getBoundingClientRect(), id: 2, board: board.getBoundingClientRect()});
         } else {
             imSpectator = true;
             console.log('Spectator');
@@ -250,7 +248,7 @@
             player2.scoreDoc.innerHTML = '' + data.score;
         }
     });
-    socket.on('win', function(data) {
+    socket.on('someoneWin', function(data) {
         if (data.id === 1) {
             message.innerHTML = 'Player 1 Win';
         } else if (data.id === 2) {
