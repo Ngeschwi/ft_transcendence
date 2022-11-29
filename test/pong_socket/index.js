@@ -12,6 +12,9 @@ app.get('/', function(req, res,next) {
 
 // ----- Init Pong -----
 
+//TODO: check why the ball have a little difference between clients
+//TODO: actually a player can move the other paddle /!\
+
 let nbrPlayer = 0;
 let gameState = 'notStarted';
 let maxPoints = 5;
