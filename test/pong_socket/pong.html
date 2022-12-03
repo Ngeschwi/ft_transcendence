@@ -194,13 +194,15 @@
     // ------------------
 
     socket.on('connect', function() {
-        socket.emit('init', positionBoard);
+        console.log('Connected to server');
     });
 
     socket.on('nbrPlayer', function(nbrPlayer) {
         if (nbrPlayer === 1) {
+            console.log('You are player 1');
             socket.emit('player_join', {ballPosition: ballDoc.getBoundingClientRect(), position: paddle1.getBoundingClientRect(), id: 1, board: board.getBoundingClientRect()});
         } else if (nbrPlayer === 2) {
+            console.log('You are player 2');
             socket.emit('player_join', {ballPosition: ballDoc.getBoundingClientRect(), position: paddle2.getBoundingClientRect(), id: 2, board: board.getBoundingClientRect()});
         } else {
             imSpectator = true;
@@ -254,6 +256,10 @@
         } else if (data.id === 2) {
             message.innerHTML = 'Player 2 Win';
         }
+    });
+
+    socket.on('gamePaused', function() {
+        message.innerHTML = 'Game Paused';
     });
 
     socket.on('alert_messages', function(data) {

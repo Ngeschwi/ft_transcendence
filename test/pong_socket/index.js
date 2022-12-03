@@ -13,17 +13,15 @@ app.get('/', function(req, res,next) {
 // ----- Init Pong -----
 
 //TODO: check why the ball have a little difference between clients
-//TODO: actually a player can move the other paddle /!\
 
-let nbrPlayer = 0;
 let gameState = 'notStarted';
 let maxPoints = 5;
-let player1;
-let player2;
+let player1 = undefined;
+let player2 = undefined;
+let players = [];
 let ball;
-let spectators = {};
-
-let positionBoard;
+let nbrSpectators = 0;
+let spectators = [];
 
 const Direction = {
     UP:  -1,
@@ -279,6 +277,12 @@ function moveBall() {
 }
 
 function moveAll() {
+    if (gameState === 'notStarted') {
+        return;
+    }
+    if (player1 === null || player2 === null) {
+        return;
+    }
     if (moveBall() === Do.END)
         return ;
     movePaddle();
@@ -314,12 +318,16 @@ io.on('connection', function(client) {
 
     console.log('Client connected...');
 
-    client.on('init', function(data) {
-        positionBoard = data;
-    });
-
-    nbrPlayer++;
-    client.emit('nbrPlayer', nbrPlayer);
+    if (players[0] === null) {
+        players[0] = player1;
+        client.emit('nbrPlayer', 1);
+    } else if (players[1] === null) {
+        players[1] = player2;
+        client.emit('nbrPlayer', 2);
+    } else {
+        nbrSpectators++;
+        client.emit('nbrPlayer', nbrSpectators);
+    }
 
     client.on('player_join', function(data) {
         if (data.id === 1) {
@@ -338,9 +346,9 @@ io.on('connection', function(client) {
     });
 
     client.on('keyDown', function(data) {
-        if (client === player1.client) {
+        if (player1 && client === player1.client) {
             player1.keyPress[data] = true;
-        } else if (client === player2.client) {
+        } else if (player2 && client === player2.client) {
             player2.keyPress[data] = true;
         }
         if (data === 'Enter' && gameState === 'notStarted' && player1 && player2 && (client === player1.client || client === player2.client)) {
@@ -349,25 +357,43 @@ io.on('connection', function(client) {
         }
     });
     client.on('keyUp', function(data) {
-        if (client === player1.client) {
+        if (player1 && client === player1.client) {
             player1.keyPress[data] = false;
-        } else if (client === player2.client) {
+        } else if (player2 && client === player2.client) {
             player2.keyPress[data] = false;
         }
     });
 
     client.on('disconnect', function() {
-        console.log('Client disconnected...');
-        nbrPlayer--;
-        // if (player1 && player1.client === client) {
-        //     player1 = null;
-        // }
-        // if (player2 && player2.client === client) {
-        //     player2 = null;
-        // }
-        // if (player1 === null && player2 === null) {
-        //     gameState = 'notStarted';
-        // }
+        if (player1 && client === player1.client) {
+            console.log('Player 1 leave');
+            if (gameState === 'started') {
+                player1.client.emit('someoneLeave');
+                player2.client.emit('someoneLeave');
+                gameState = 'notStarted';
+                resetGame();
+            }
+            players[0] = null;
+            player1 = null;
+        } else if (player2 && client === player2.client) {
+            console.log('Player 2 leave');
+            if (gameState === 'started') {
+                player1.client.emit('someoneLeave');
+                player2.client.emit('someoneLeave');
+                gameState = 'notStarted';
+                resetGame();
+            }
+            players[1] = null;
+            player2 = null;
+        } else {
+            console.log('Spectator leave');
+            nbrSpectators--;
+            for (let id in spectators) {
+                if (spectators[id] === client) {
+                    delete spectators[id];
+                }
+            }
+        }
     });
 });
 
