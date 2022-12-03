@@ -33,10 +33,10 @@ const Do = {
     CONTINUE: 0,
     END: 1
 }
-let keyPress = {};
 
 class Player {
     constructor(position, id, client, board) {
+        this.keyPress = {};
         this.id = id;
         this.client = client;
         this.speed = 1;
@@ -66,9 +66,9 @@ class Player {
 
     move(way) {
 
-        if ((keyPress['w'] || keyPress['ArrowUp']) && this.coord.top - this.speed < 0) {
+        if ((player1.keyPress['w'] || player2.keyPress['ArrowUp']) && this.coord.top - this.speed < 0) {
             this.coordCenter.y = this.size.height / 2;
-        } else if ((keyPress['s'] || keyPress['ArrowDown']) && this.coord.bottom + this.speed > 100) {
+        } else if ((player1.keyPress['s'] || player2.keyPress['ArrowDown']) && this.coord.bottom + this.speed > 100) {
             this.coordCenter.y = 100 - this.size.height / 2;
         } else {
             this.coordCenter.y += this.speed * way;
@@ -196,28 +196,28 @@ function getNewDirection(hit) {
 }
 
 function movePaddle() {
-    if (keyPress['w']) {
+    if (player1.keyPress['w']) {
         player1.move(Direction.UP);
         player2.client.emit('moveOtherPaddle', {top: player1.coord.top, id: player1.id});
         for (let id in spectators) {
             spectators[id].emit('moveOtherPaddle', {top: player1.coord.top, id: player1.id});
         }
     }
-    if (keyPress['s']) {
+    if (player1.keyPress['s']) {
         player1.move(Direction.DOWN);
         player2.client.emit('moveOtherPaddle', {top: player1.coord.top, id: player1.id});
         for (let id in spectators) {
             spectators[id].emit('moveOtherPaddle', {top: player1.coord.top, id: player1.id});
         }
     }
-    if (keyPress['ArrowUp']) {
+    if (player2.keyPress['ArrowUp']) {
         player2.move(Direction.UP);
         player1.client.emit('moveOtherPaddle', {top: player2.coord.top, id: player2.id});
         for (let id in spectators) {
             spectators[id].emit('moveOtherPaddle', {top: player2.coord.top, id: player2.id});
         }
     }
-    if (keyPress['ArrowDown']) {
+    if (player2.keyPress['ArrowDown']) {
         player2.move(Direction.DOWN);
         player1.client.emit('moveOtherPaddle', {top: player2.coord.top, id: player2.id});
         for (let id in spectators) {
@@ -338,14 +338,22 @@ io.on('connection', function(client) {
     });
 
     client.on('keyDown', function(data) {
-        keyPress[data] = true;
-        if (data === 'Enter' && gameState === 'notStarted' && player1 && player2) {
+        if (client === player1.client) {
+            player1.keyPress[data] = true;
+        } else if (client === player2.client) {
+            player2.keyPress[data] = true;
+        }
+        if (data === 'Enter' && gameState === 'notStarted' && player1 && player2 && (client === player1.client || client === player2.client)) {
             client.emit('startGame');
             startGame();
         }
     });
     client.on('keyUp', function(data) {
-        keyPress[data] = false;
+        if (client === player1.client) {
+            player1.keyPress[data] = false;
+        } else if (client === player2.client) {
+            player2.keyPress[data] = false;
+        }
     });
 
     client.on('disconnect', function() {
