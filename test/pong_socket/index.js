@@ -183,10 +183,10 @@ function getPoint(whoScore) {
 
 function getNewDirection(hit) {
     if (hit === 'left') {
-        ball.directionY = Math.tan((ball.coordCenter.y - player1.coordCenter.y) / (player1.size.height / 2)) * 2;
+        ball.directionY = Math.tan((ball.coordCenter.y - player1.coordCenter.y) / (player1.size.height / 2)) * 1.5;
         ball.directionX = ball.speed + (Math.abs(ball.directionY) / 2);
     } else {
-        ball.directionY = Math.tan((ball.coordCenter.y - player2.coordCenter.y) / (player2.size.height / 2)) * 2;
+        ball.directionY = Math.tan((ball.coordCenter.y - player2.coordCenter.y) / (player2.size.height / 2)) * 1.5;
         ball.directionX = -ball.speed - (Math.abs(ball.directionY) / 2);
     }
     ball.move();
