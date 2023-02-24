@@ -1,4 +1,6 @@
-// ----- Init Server -----
+// ---------------------------------------------------------------------
+// ---------------------------- Init Server ----------------------------
+// ---------------------------------------------------------------------
 
 let express = require('express');
 let app = express();
@@ -10,9 +12,9 @@ app.get('/', function(req, res,next) {
     res.sendFile(__dirname + '/pong.html');
 });
 
-// ----- Init Pong -----
-
-//TODO: check why the ball have a little difference between clients
+// -------------------------------------------------------------------
+// ---------------------------- Init Pong ----------------------------
+// -------------------------------------------------------------------
 
 let gameState = 'notStarted';
 let maxPoints = 5;
@@ -32,10 +34,12 @@ const Do = {
     END: 1
 }
 
+// Class player /!\ : size and position in %
 class Player {
     constructor(position, id, client, board) {
         this.keyPress = {};
         this.id = id;
+        this.name = 'player' + id;
         this.client = client;
         this.speed = 1;
         this.score = 0;
@@ -55,6 +59,7 @@ class Player {
         };
     }
 
+    // Calcul coord of the new position of the paddle
     getNewPosition() {
         this.coord.top = this.coordCenter.y - this.size.height / 2;
         this.coord.bottom = this.coordCenter.y + this.size.height / 2;
@@ -62,6 +67,7 @@ class Player {
         this.coord.right = this.coordCenter.x + this.size.width / 2;
     }
 
+    // Function to move the paddle on the board, and sending to everyone the new position
     move(way) {
 
         if ((player1.keyPress['w'] || player2.keyPress['ArrowUp']) && this.coord.top - this.speed < 0) {
@@ -80,6 +86,7 @@ class Player {
         }
     }
 
+    // Function to reset the place of the paddle in the board
     resetPlace() {
         this.coordCenter.y = 50;
         this.getNewPosition();
@@ -91,6 +98,7 @@ class Player {
     }
 }
 
+// Class Ball /!\ : size and position in %
 class Ball {
     constructor(position, player1, player2, board) {
         this.player1 = player1;
@@ -114,13 +122,15 @@ class Ball {
         };
     }
 
+    // Calcul coord of the new position of the paddle
     getNewPosition() {
         this.coord.top = this.coordCenter.y - this.size.height / 2;
         this.coord.bottom = this.coordCenter.y + this.size.height / 2;
         this.coord.left = this.coordCenter.x - this.size.width / 2;
         this.coord.right = this.coordCenter.x + this.size.width / 2;
     }
-    
+
+    // Function to move the paddle on the board, and sending to everyone the new position
     move() {
         this.coordCenter.x += this.directionX * this.speed;
         this.coordCenter.y += this.directionY * this.speed;
@@ -133,6 +143,7 @@ class Ball {
         }
     }
 
+    // Function to reset the place of the paddle in the board
     resetPlace() {
         this.coordCenter.x = 50;
         this.coordCenter.y = 50;
@@ -149,89 +160,96 @@ class Ball {
     }
 }
 
-function getPoint(whoScore) {
-    if (whoScore === 'left') {
-        player1.score++;
-        player1.client.emit('updateScore', {id: player1.id, score: player1.score});
-        player2.client.emit('updateScore', {id: player1.id, score: player1.score});
-        for (let id in spectators) {
-            spectators[id].emit('updateScore', {id: player1.id, score: player1.score});
-        }
-        if (player1.score === maxPoints) {
-            player1.client.emit('someoneWin', player1.id);
-            player2.client.emit('someoneWin', player1.id);
-            gameState = 'notStarted';
-            return Do.END;
-        }
-    } else{
-        player2.score++;
-        player2.client.emit('updateScore', {id: player2.id, score: player2.score});
-        player1.client.emit('updateScore', {id: player2.id, score: player2.score});
-        for (let id in spectators) {
-            spectators[id].emit('updateScore', {id: player2.id, score: player2.score});
-        }
-        if (player2.score === maxPoints) {
-            player2.client.emit('someoneWin', player2.id);
-            player1.client.emit('someoneWin', player2.id);
-            gameState = 'notStarted';
-            return Do.END;
-        }
+// TODO : find a way to use emitToEveryone
+// function emitToEveryone()
+
+// When someone score, function to update to all players and spectators the score
+// param1: the player who score
+// param2: the other player
+function getPoint(playerWhoScore, otherPlayer) {
+    playerWhoScore.score++;
+    playerWhoScore.client.emit('updateScore', {id: playerWhoScore.id, score: playerWhoScore.score});
+    otherPlayer.client.emit('updateScore', {id: playerWhoScore.id, score: playerWhoScore.score});
+    for (let id in spectators) {
+        spectators[id].emit('updateScore', {id: playerWhoScore.id, score: playerWhoScore.score});
     }
+    if (playerWhoScore.score === maxPoints) {
+        playerWhoScore.client.emit('someoneWin', playerWhoScore.id);
+        otherPlayer.client.emit('someoneWin', playerWhoScore.id);
+        for (let id in spectators) {
+            spectators[id].emit('someoneWin', playerWhoScore.id);
+        }
+        gameState = 'notStarted';
+        return Do.END;
+    }
+
+    // playerWhoScore.client.emit('newMessage', ' you have to press space to play !');
+    // otherPlayer.client.emit('newMessage', 'you have to press space to play !');
+    // for (let id in spectators) {
+    //     spectators[id].emit('newMessage', ' you have to press space to play !');
+    // }
+    // while (!otherPlayer.keyPress['Space']) {
+    //     console.log('waiting for space')
+    // }
+    // console.log('not waiting')
+    // TODO : wait that the player who doesn't score press the enter key and the ball will go in the direction of the player who score
     ball.resetPlace();
     return Do.CONTINUE;
 }
 
-function getNewDirection(hit) {
-    if (hit === 'left') {
-        ball.directionY = Math.tan((ball.coordCenter.y - player1.coordCenter.y) / (player1.size.height / 2)) * 1.5;
+// When the ball hit a paddle, function to calcul the new direction of the ball, direction x and direction y
+// param : the player who hit the ball with his paddle
+function getNewDirection(playerWhoHitTheBall) {
+    ball.directionY = Math.tan((ball.coordCenter.y - playerWhoHitTheBall.coordCenter.y) / (playerWhoHitTheBall.size.height / 2)) * 1.5;
+    
+    if (playerWhoHitTheBall === player1) {
         ball.directionX = ball.speed + (Math.abs(ball.directionY) / 2);
     } else {
-        ball.directionY = Math.tan((ball.coordCenter.y - player2.coordCenter.y) / (player2.size.height / 2)) * 1.5;
         ball.directionX = -ball.speed - (Math.abs(ball.directionY) / 2);
     }
-    ball.move();
-    setTimeout(moveBall, 10);
 }
 
+// When we press the good key to move, function to update the place of the paddle who moved
 function movePaddle() {
     if (player1.keyPress['w']) {
         player1.move(Direction.UP);
-        player2.client.emit('moveOtherPaddle', {top: player1.coord.top, id: player1.id});
+        player2.client.emit('movePaddle', {top: player1.coord.top, id: player1.id});
         for (let id in spectators) {
-            spectators[id].emit('moveOtherPaddle', {top: player1.coord.top, id: player1.id});
+            spectators[id].emit('movePaddle', {top: player1.coord.top, id: player1.id});
         }
     }
     if (player1.keyPress['s']) {
         player1.move(Direction.DOWN);
-        player2.client.emit('moveOtherPaddle', {top: player1.coord.top, id: player1.id});
+        player2.client.emit('movePaddle', {top: player1.coord.top, id: player1.id});
         for (let id in spectators) {
-            spectators[id].emit('moveOtherPaddle', {top: player1.coord.top, id: player1.id});
+            spectators[id].emit('movePaddle', {top: player1.coord.top, id: player1.id});
         }
     }
     if (player2.keyPress['ArrowUp']) {
         player2.move(Direction.UP);
-        player1.client.emit('moveOtherPaddle', {top: player2.coord.top, id: player2.id});
+        player1.client.emit('movePaddle', {top: player2.coord.top, id: player2.id});
         for (let id in spectators) {
-            spectators[id].emit('moveOtherPaddle', {top: player2.coord.top, id: player2.id});
+            spectators[id].emit('movePaddle', {top: player2.coord.top, id: player2.id});
         }
     }
     if (player2.keyPress['ArrowDown']) {
         player2.move(Direction.DOWN);
-        player1.client.emit('moveOtherPaddle', {top: player2.coord.top, id: player2.id});
+        player1.client.emit('movePaddle', {top: player2.coord.top, id: player2.id});
         for (let id in spectators) {
-            spectators[id].emit('moveOtherPaddle', {top: player2.coord.top, id: player2.id});
+            spectators[id].emit('movePaddle', {top: player2.coord.top, id: player2.id});
         }
     }
 }
 
+// This function is call all the time every 10ms, function to check if the ball hit something and do calculs if it's touch something
 function moveBall() {
     // if the ball touch the left or right of the board
     if (ball.coord.left <= 0) {
-        if (getPoint('right'))
+        if (getPoint(player2, player1))
             return Do.END;
     }
     if (ball.coord.right >= 100) {
-        if (getPoint('left'))
+        if (getPoint(player1, player2))
             return Do.END;
     }
 
@@ -240,15 +258,13 @@ function moveBall() {
         && ball.coord.bottom >= player1.coord.top
         && ball.coord.top <= player1.coord.bottom
         && ball.coord.left >= player1.coord.left) {
-        getNewDirection('left');
-        return Do.CONTINUE;
+        getNewDirection(player1);
     }
     if (ball.coord.right >= player2.coord.left
         && ball.coord.bottom >= player2.coord.top
         && ball.coord.top <= player2.coord.bottom
         && ball.coord.right <= player2.coord.right) {
-        getNewDirection('right');
-        return Do.CONTINUE;
+        getNewDirection(player2);
     }
 
     // if the ball touch the top or bottom of the board
@@ -276,6 +292,7 @@ function moveBall() {
     ball.move();
 }
 
+// Function to check if the game started and if the players are still there
 function moveAll() {
     if (gameState === 'notStarted') {
         return;
@@ -289,6 +306,7 @@ function moveAll() {
     setTimeout(moveAll, 10);
 }
 
+// Fucntion to reset the place of the ball and players adn reset the score to 0
 function resetGame() {
     console.log('reset');
     player1.score = 0;
@@ -306,6 +324,7 @@ function resetGame() {
     ball.resetPlace();
 }
 
+// When we press the key enter, function to start the game
 function startGame() {
     if (gameState === 'notStarted') {
         gameState = 'started';
@@ -314,10 +333,15 @@ function startGame() {
     }
 }
 
+// ---------------------------------------------------------------------
+// ---------------------------- Socket Part ----------------------------
+// ---------------------------------------------------------------------
+
 io.on('connection', function(client) {
 
     console.log('Client connected...');
 
+    // Sending notification to client to tell them who there are (player1, player2 or spectators)
     if (players[0] === null) {
         players[0] = player1;
         client.emit('nbrPlayer', 1);
@@ -329,6 +353,7 @@ io.on('connection', function(client) {
         client.emit('nbrPlayer', nbrSpectators);
     }
 
+    // Getting informations of player1 and player2 and spectators if there are, just after sending notification
     client.on('player_join', function(data) {
         if (data.id === 1) {
             console.log('Player ' + data.id + ' join');
@@ -345,6 +370,7 @@ io.on('connection', function(client) {
         }
     });
 
+    // Getting notifications if someone press a key
     client.on('keyDown', function(data) {
         if (player1 && client === player1.client) {
             player1.keyPress[data] = true;
@@ -356,6 +382,7 @@ io.on('connection', function(client) {
             startGame();
         }
     });
+    // Getting notifications if someone release a key
     client.on('keyUp', function(data) {
         if (player1 && client === player1.client) {
             player1.keyPress[data] = false;
@@ -364,6 +391,7 @@ io.on('connection', function(client) {
         }
     });
 
+    // Getting notifications if someone leave the game 
     client.on('disconnect', function() {
         if (player1 && client === player1.client) {
             console.log('Player 1 leave');
