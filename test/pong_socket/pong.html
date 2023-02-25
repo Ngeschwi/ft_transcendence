@@ -119,11 +119,19 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-    // ----- Connect socket.io -----
+    // ---------------------------------------------------------------------------------------
+    // ---------------------------------- Connect socket.io ----------------------------------
+    // ---------------------------------------------------------------------------------------
 
+<<<<<<< HEAD
     let socket = io.connect('http://172.17.0.1:3000');
+=======
+    let socket = io.connect('http://localhost:3000');
+>>>>>>> 899ca477d36938860dc1a34b033fbd92a38b5614
 
-    // ----- Init Pong -----
+    // ---------------------------------------------------------------
+    // -------------------------- Init Pong --------------------------
+    // ---------------------------------------------------------------
 
     let paddle1 = document.getElementById('paddle1');
     let paddle2 = document.getElementById('paddle2');
@@ -132,10 +140,10 @@
     let message = document.getElementById('message');
     let ballDoc = document.getElementById('ball');
     let board = document.getElementById('board');
-    let positionBoard = board.getBoundingClientRect();
 
     let imSpectator = false;
 
+    // Class player /!\ : here we have only the score and the paddle on the HTML and we don't have access to server informations
     class Player {
         constructor(score, paddle) {
             this.scoreDoc = score;
@@ -151,6 +159,7 @@
         }
     }
 
+    // Class Ball /!\ : here we have only the score and the paddle on the HTML and we don't have access to server informations
     class Ball {
         constructor(ball) {
             this.ball = ball;
@@ -168,6 +177,7 @@
         }
     }
 
+    // Init players and the ball
     player1 = new Player(player1Score, paddle1);
     player2 = new Player(player2Score, paddle2);
     ball = new Ball(ballDoc, ballDoc.getBoundingClientRect());
@@ -175,6 +185,7 @@
     document.addEventListener('keydown', keyDownEvent);
     document.addEventListener('keyup', keyUpEvent);
 
+    // When the client press a key, function to send notification to the server
     function keyDownEvent(event) {
         if (imSpectator) {
             return;
@@ -182,6 +193,7 @@
         socket.emit('keyDown', event.key);
     }
 
+    // When the client release a key, function to send notification to the server
     function keyUpEvent(event) {
         if (imSpectator) {
             return;
@@ -189,14 +201,16 @@
         socket.emit('keyUp', event.key);
     }
 
-    // ------------------
-    // ----- Socket -----
-    // ------------------
+    // ------------------------------------------------------
+    // ----------------------- Socket -----------------------
+    // ------------------------------------------------------
 
+    // When client is connected to the server
     socket.on('connect', function() {
         console.log('Connected to server');
     });
 
+    // After be connected to the server we receive notification to know who we are (player1, player2 or spectator) and we send the good informations about us
     socket.on('nbrPlayer', function(nbrPlayer) {
         if (nbrPlayer === 1) {
             console.log('You are player 1');
@@ -211,12 +225,14 @@
         }
     });
 
+    // When someone press the enter key and starts the game
     socket.on('startGame', function() {
         message.innerHTML = 'Game Start';
         player1.scoreDoc.innerHTML = '0';
         player2.scoreDoc.innerHTML = '0';
     });
 
+    // When we have to reset the place of the ball or paddles
     socket.on('resetBall', function(data) {
         ball.resetPlace(data.top, data.left);
     });
@@ -225,6 +241,7 @@
         player2.resetPlace(data);
     });
 
+    // When we have to move the ball or paddles
     socket.on('moveBall', function(data) {
         ball.move(data.top, data.left);
     });
@@ -235,14 +252,8 @@
             player2.move(data.top);
         }
     });
-    socket.on('moveOtherPaddle', function(data) {
-        if (data.id === 1) {
-            player1.move(data.top);
-        } else if (data.id === 2) {
-            player2.move(data.top);
-        }
-    });
 
+    // When someone score or win the game
     socket.on('updateScore', function(data) {
         if (data.id === 1) {
             player1.scoreDoc.innerHTML = '' + data.score;
@@ -258,8 +269,8 @@
         }
     });
 
-    socket.on('gamePaused', function() {
-        message.innerHTML = 'Game Paused';
+    socket.on('newMessage', function(data) {
+        message.innerHTML = data;
     });
 
     socket.on('alert_messages', function(data) {
