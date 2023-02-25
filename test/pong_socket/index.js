@@ -98,6 +98,15 @@ class Player {
     }
 }
 
+// Function to send the good event to everyone
+function emitToEveryone(event, args) {
+    player1.client.emit(event, args);
+    player2.client.emit(event, args);
+    for (let id in spectators) {
+        spectators[id].emit(event, args);
+    }
+}
+
 // Class Ball /!\ : size and position in %
 class Ball {
     constructor(position, player1, player2, board) {
@@ -136,11 +145,7 @@ class Ball {
         this.coordCenter.y += this.directionY * this.speed;
         this.getNewPosition();
 
-        this.player1.client.emit('moveBall', {top: this.coord.top, left: this.coord.left});
-        this.player2.client.emit('moveBall', {top: this.coord.top, left: this.coord.left});
-        for (let id in spectators) {
-            spectators[id].emit('moveBall', {top: this.coord.top, left: this.coord.left});
-        }
+        emitToEveryone('moveBall', {top: this.coord.top, left: this.coord.left});
     }
 
     // Function to reset the place of the paddle in the board
@@ -152,46 +157,32 @@ class Ball {
         this.directionX = Math.floor(Math.random() * 2) === 0 ? -1 * this.speed : this.speed;
         this.directionY = 0;
 
-        this.player1.client.emit('resetBall', {top: this.coord.top, left: this.coord.left});
-        this.player2.client.emit('resetBall', {top: this.coord.top, left: this.coord.left});
-        for (let id in spectators) {
-            spectators[id].emit('resetBall', {top: this.coord.top, left: this.coord.left});
-        }
+        emitToEveryone('resetBall', {top: this.coord.top, left: this.coord.left});
     }
 }
 
-// TODO : find a way to use emitToEveryone
-// function emitToEveryone()
+// when someone score, function to wait press space
+async function waitForSpacePress(otherPlayer) {
+    while (!otherPlayer.keyPress['Space']) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+}
 
 // When someone score, function to update to all players and spectators the score
 // param1: the player who score
 // param2: the other player
 function getPoint(playerWhoScore, otherPlayer) {
     playerWhoScore.score++;
-    playerWhoScore.client.emit('updateScore', {id: playerWhoScore.id, score: playerWhoScore.score});
-    otherPlayer.client.emit('updateScore', {id: playerWhoScore.id, score: playerWhoScore.score});
-    for (let id in spectators) {
-        spectators[id].emit('updateScore', {id: playerWhoScore.id, score: playerWhoScore.score});
-    }
+    emitToEveryone('updateScore', {id: playerWhoScore.id, score: playerWhoScore.score});
     if (playerWhoScore.score === maxPoints) {
-        playerWhoScore.client.emit('someoneWin', playerWhoScore.id);
-        otherPlayer.client.emit('someoneWin', playerWhoScore.id);
-        for (let id in spectators) {
-            spectators[id].emit('someoneWin', playerWhoScore.id);
-        }
+        emitToEveryone('someoneWin', playerWhoScore.id);
         gameState = 'notStarted';
         return Do.END;
     }
 
-    // playerWhoScore.client.emit('newMessage', ' you have to press space to play !');
-    // otherPlayer.client.emit('newMessage', 'you have to press space to play !');
-    // for (let id in spectators) {
-    //     spectators[id].emit('newMessage', ' you have to press space to play !');
-    // }
-    // while (!otherPlayer.keyPress['Space']) {
-    //     console.log('waiting for space')
-    // }
-    // console.log('not waiting')
+    // emitToEveryone('newMessage', otherPlayer.name + ' you have to press space to play !');
+    // await waitForSpacePress(otherPlayer);
+    
     // TODO : wait that the player who doesn't score press the enter key and the ball will go in the direction of the player who score
     ball.resetPlace();
     return Do.CONTINUE;
@@ -276,14 +267,14 @@ function moveBall() {
     }
 
     // if the ball the top or bottom of the paddle
-    if ((ball.coord.top <= player1.coord.bottom
-        || ball.coord.bottom >= player1.coord.top)
+    if ((ball.coord.top == player1.coord.bottom
+        || ball.coord.bottom == player1.coord.top)
         && ball.coord.left <= player1.coord.right
         && ball.coord.right >= player1.coord.left) {
         ball.directionY = -ball.directionY;
     }
-    if ((ball.coord.bottom >= player2.coord.top
-        || ball.coord.top <= player2.coord.bottom)
+    if ((ball.coord.bottom == player2.coord.top
+        || ball.coord.top == player2.coord.bottom)
         && ball.coord.left <= player2.coord.right
         && ball.coord.right >= player2.coord.left) {
         ball.directionY = -ball.directionY;
@@ -311,14 +302,8 @@ function resetGame() {
     console.log('reset');
     player1.score = 0;
     player2.score = 0;
-    player1.client.emit('updateScore', {id: player1.id, score: player1.score});
-    player1.client.emit('updateScore', {id: player2.id, score: player2.score});
-    player2.client.emit('updateScore', {id: player1.id, score: player1.score});
-    player2.client.emit('updateScore', {id: player2.id, score: player2.score});
-    for (let id in spectators) {
-        spectators[id].emit('updateScore', {id: player1.id, score: player1.score});
-        spectators[id].emit('updateScore', {id: player2.id, score: player2.score});
-    }
+    emitToEveryone('updateScore', {id: player1.id, score: player1.score});
+    emitToEveryone('updateScore', {id: player2.id, score: player2.score});
     player1.resetPlace();
     player2.resetPlace();
     ball.resetPlace();
@@ -378,7 +363,7 @@ io.on('connection', function(client) {
             player2.keyPress[data] = true;
         }
         if (data === 'Enter' && gameState === 'notStarted' && player1 && player2 && (client === player1.client || client === player2.client)) {
-            client.emit('startGame');
+            emitToEveryone('startGame');
             startGame();
         }
     });
